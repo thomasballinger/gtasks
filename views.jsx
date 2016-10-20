@@ -3,18 +3,18 @@ var React = require('react');
 
 const view = (state) => {
   return React.createElement('div', {}, [
-    taskListsView(state.taskLists),
-    authorizeDivView(state.authState)
+    taskListsView({ taskLists: state.taskLists} ),
+    authorizeDivView( {isAuthed: state.authState} )
   ]);
 };
 
-const taskListsView = (taskLists) => {
-  if (taskLists){
-    const titleAgoObjs = taskLists.map( l => { return {'title': l.title, 'ago': Math.round((new Date() - l.updated) / 1000) + ' seconds ago'}; } );
+const taskListsView = props => {
+  if (props.taskLists){
+    const titleAgoObjs = props.taskLists.map( l => { return {'title': l.title, 'ago': Math.round((new Date() - l.updated) / 1000) + ' seconds ago'}; } );
     return React.createElement('div', {}, [
       React.createElement('h1', {key:'header'}, "Task Lists:"),
-      //list(taskLists.map( l => l.title + ' updated ' + Math.round((new Date() - l.updated) / 1000) + ' seconds ago')),
-      table(['title', 'ago'], titleAgoObjs)
+      list( {data: props.taskLists.map( l => l.title + ' updated ' + Math.round((new Date() - l.updated) / 1000) + ' seconds ago')} ),
+      table({headers: ['title', 'ago'], data: titleAgoObjs})
     ]);
   } else {
     return (
@@ -23,17 +23,19 @@ const taskListsView = (taskLists) => {
   }
 };
 
-const listItem = (s, i) => React.createElement("li", {key: i}, s.toString());
-const list = data => React.createElement("ul", { className: "hello", key:'imalist' }, data.map(listItem));
-const table = (headers, data) => {
-  const dataRows = data.map( d => headers.map( h => d[h] ) );
-  return React.createElement('table', {}, [].concat([tableHeaders(headers)], dataRows.map(tableRow)));
+const listItem = props => <li> { props.data.toString() } </li>;
+const list = props => <ul className="hello"> { props.data.map( d => listItem({data: d}) ) } </ul>
+const table = props => {
+  const dataRows = props.data.map( d => props.headers.map( h => d[h] ) );
+  return (<table>
+    {[].concat([tableHeaders( {headers: props.headers} )], dataRows.map( (dataRow) => tableRow({fields: dataRow}) ))}
+  </table>);
 };
-const tableHeaders = headers => React.createElement('tr', {}, headers.map( h => React.createElement('th', {}, h) ));
-const tableRow = fields => React.createElement('tr', {}, fields.map( f => React.createElement('td', {}, f) ));
+const tableHeaders = props => React.createElement('tr', {}, props.headers.map( h => React.createElement('th', {}, h) ));
+const tableRow = props => React.createElement('tr', {}, props.fields.map( f => React.createElement('td', {}, f) ));
 
-const authorizeDivView = (isAuthed) => {
-  if (isAuthed !== 'notAuthed'){
+const authorizeDivView = props => {
+  if (props.isAuthed !== 'notAuthed'){
     return React.createElement('span', {}, "You're authorized");
   }
   return React.createElement('div', {id: 'authorize-div'}, [
@@ -44,6 +46,5 @@ const authorizeDivView = (isAuthed) => {
       }, 'Authorize')
     ]);
 };
-
 
 module.exports.view = view;
