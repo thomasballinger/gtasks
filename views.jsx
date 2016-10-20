@@ -10,14 +10,16 @@ const view = (state) => {
 
 const taskListsView = (taskLists) => {
   if (taskLists){
-    titleAgoObjs = taskLists.map( l => { return {'title': l.title, 'ago': Math.round((new Date() - l.updated) / 1000) + ' seconds ago'}; } );
+    const titleAgoObjs = taskLists.map( l => { return {'title': l.title, 'ago': Math.round((new Date() - l.updated) / 1000) + ' seconds ago'}; } );
     return React.createElement('div', {}, [
       React.createElement('h1', {key:'header'}, "Task Lists:"),
       //list(taskLists.map( l => l.title + ' updated ' + Math.round((new Date() - l.updated) / 1000) + ' seconds ago')),
       table(['title', 'ago'], titleAgoObjs)
     ]);
   } else {
-    return React.createElement('h1', {key:'header'}, "No task lists or still loading");
+    return (
+      <h1 key="header"> "No task lists or still loading" </h1>
+    );
   }
 };
 
