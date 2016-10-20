@@ -40,8 +40,10 @@
         }
         return React.createElement('div', {id: 'authorize-div'}, [
             React.createElement('span', {}, 'Authorize access to Google Tasks API'),
-            React.createElement('button', {id: 'authorize-button',
-                                           onclick:"handleAuthClick(event)"}, 'Authorize')
+            React.createElement('button', {
+              id: 'authorize-button',
+              onClick: () => [update('authClick'), false][1]
+            }, 'Authorize')
           ]);
       }
 
@@ -62,19 +64,23 @@
         console.log('got messageType:', msgType)
         switch (msgType){
           case 'googleScriptLoaded':
-            checkAuth();
+            gapi.auth.authorize(
+              {
+                'client_id': CLIENT_ID,
+                'scope': SCOPES.join(' '),
+                'immediate': true
+              }, handleAuthResult);
             break;
           case 'authed':
             currentState.authState = 'authed'
-            setTimeout(loadTasksApi, 0);
-            //todo: update model here
+            gapi.client.load('tasks', 'v1', ()=>update('tasksAPILoaded'));
             break;
           case 'notAuthed':
             currentState.authState = 'notAuthed'
-            //todo: update model here
             break;
           case 'tasksAPILoaded':
-            setTimeout( () => listTaskLists( (resp) => update('taskLists', resp.items) ), 0);
+            gapi.client.tasks.tasklists.list({ 'maxResults': 10 })
+              .execute( (resp) => update('taskLists', resp.items) );
             break;
           case 'taskLists':
             console.log('got task lists!');
@@ -82,6 +88,11 @@
               taskList.updated = Date.parse(taskList.updated);
               return taskList;
             }) : [];
+            break;
+          case 'authClick':
+            gapi.auth.authorize(
+              {client_id: CLIENT_ID, scope: SCOPES, immediate: false},
+              handleAuthResult);
             break;
           default:
             console.log(msgType, payload);
@@ -94,70 +105,19 @@
       var CLIENT_ID = '1027347322337-e8mhkk9lp6kl5ho8fpj30i1plc2ehcpk.apps.googleusercontent.com';
       var SCOPES = ['https://www.googleapis.com/auth/tasks.readonly'];
 
-      function checkAuth() {
-        gapi.auth.authorize(
-          {
-            'client_id': CLIENT_ID,
-            'scope': SCOPES.join(' '),
-            'immediate': true
-          }, handleAuthResult);
-      }
-
-      function handleAuthResult(authResult) {
-        if (authResult && !authResult.error) {
+      const handleAuthResult = (result) => {
+        if (result && !result.error) {
           update('authed')
         } else {
           update('notAuthed')
         }
       }
 
-      function handleAuthClick(event) {
-        gapi.auth.authorize(
-          {client_id: CLIENT_ID, scope: SCOPES, immediate: false},
-          handleAuthResult);
-        return false;
-      }
-
-      function loadTasksApi() {
-        gapi.client.load('tasks', 'v1', ()=>update('tasksAPILoaded'));
-      }
-      function listTaskLists(cb) {
-        var request = gapi.client.tasks.tasklists.list({
-            'maxResults': 10
-          });
-
-          request.execute(cb);
-      }
-
-      /**
-       * Append a pre element to the body containing the given message
-       * as its text node.
-       *
-       * @param {string} message Text to be placed in pre element.
-       */
-      function appendPre(message) {
-        var pre = document.getElementById('output');
-        var textContent = document.createTextNode(message + '\n');
-        pre.appendChild(textContent);
-      }
-
-    function googleScriptLoaded(){
-      update('googleScriptLoaded')
-    }
-
+      function googleScriptLoaded(){ update('googleScriptLoaded') }
     </script>
     <script src="https://apis.google.com/js/client.js?onload=googleScriptLoaded"> </script>
   </head>
   <body>
     <div id="example"></div>
-    <!-- Now this is handled by react
-    <div id="authorize-div" style="display: none">
-      <span>Authorize access to Google Tasks API</span>
-      <button id="authorize-button" onclick="handleAuthClick(event)">
-        Authorize
-      </button>
-    </div>
-    -->
-    <pre id="output"></pre>
   </body>
 </html>
