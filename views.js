@@ -1,3 +1,4 @@
+var React = require('react');
 /* Views */
 
 const view = (state) => {
@@ -41,3 +42,6 @@ const authorizeDivView = (isAuthed) => {
       }, 'Authorize')
     ]);
 };
+
+
+module.exports.view = view;
