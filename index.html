@@ -2,119 +2,14 @@
   <head>
     <script src="https://unpkg.com/react@15.3.2/dist/react.js"></script>
     <script src="https://unpkg.com/react-dom@15.3.2/dist/react-dom.js"></script>
-    <script>
-      /* Views */
-
-      const view = (state) => {
-        return React.createElement('div', {}, [
-          taskListsView(state.taskLists),
-          authorizeDivView(state.authState)
-        ]);
-      }
-
-      const taskListsView = (taskLists) => {
-        if (taskLists){
-          titleAgoObjs = taskLists.map( l => { return {'title': l.title, 'ago': Math.round((new Date() - l.updated) / 1000) + ' seconds ago'}} );
-          return React.createElement('div', {}, [
-            React.createElement('h1', {key:'header'}, "Task Lists:"),
-            //list(taskLists.map( l => l.title + ' updated ' + Math.round((new Date() - l.updated) / 1000) + ' seconds ago')),
-            table(['title', 'ago'], titleAgoObjs)
-          ]);
-        } else {
-          return React.createElement('h1', {key:'header'}, "No task lists or still loading");
-        }
-      }
-
-      const listItem = (s, i) => React.createElement("li", {key: i}, s.toString());
-      const list = data => React.createElement("ul", { className: "hello", key:'imalist' }, data.map(listItem));
-      const table = (headers, data) => {
-        const dataRows = data.map( d => headers.map( h => d[h] ) );
-        return React.createElement('table', {}, [].concat([tableHeaders(headers)], dataRows.map(tableRow)));
-      }
-      const tableHeaders = headers => React.createElement('tr', {}, headers.map( h => React.createElement('th', {}, h) ));
-      const tableRow = fields => React.createElement('tr', {}, fields.map( f => React.createElement('td', {}, f) ));
-
-      const authorizeDivView = (isAuthed) => {
-        if (isAuthed !== 'notAuthed'){
-          return React.createElement('span', {}, "You're authorized");
-        }
-        return React.createElement('div', {id: 'authorize-div'}, [
-            React.createElement('span', {}, 'Authorize access to Google Tasks API'),
-            React.createElement('button', {
-              id: 'authorize-button',
-              onClick: () => [update('authClick'), false][1]
-            }, 'Authorize')
-          ]);
-      }
-
-    </script>
+    <script src="auth.js"></script>
+    <script src="views.js"></script>
+    <script src="update.js"></script>
     <script type="text/javascript">
-
-      /* Model */
-      var currentState = {
-        taskLists : [{title: 'a', updated: 'never'}, {title: 'b', updated: 'recently'}],
-                    // Each task list has a title, an id, and an updated field: RFC 3339 timestamp
-                    // https://developers.google.com/google-apps/tasks/v1/reference/tasklists#resource
-        authState : 'dunnoYet'   // 'dunnoYet', 'authed', 'notAuthed'
-      }
-
-      /* Update */
-      // Within this function the global variable currentState is mutated
-      const update = (msgType, payload) => {
-        console.log('got messageType:', msgType)
-        switch (msgType){
-          case 'googleScriptLoaded':
-            gapi.auth.authorize(
-              {
-                'client_id': CLIENT_ID,
-                'scope': SCOPES.join(' '),
-                'immediate': true
-              }, handleAuthResult);
-            break;
-          case 'authed':
-            currentState.authState = 'authed'
-            gapi.client.load('tasks', 'v1', ()=>update('tasksAPILoaded'));
-            break;
-          case 'notAuthed':
-            currentState.authState = 'notAuthed'
-            break;
-          case 'tasksAPILoaded':
-            gapi.client.tasks.tasklists.list({ 'maxResults': 10 })
-              .execute( (resp) => update('taskLists', resp.items) );
-            break;
-          case 'taskLists':
-            console.log('got task lists!');
-            currentState.taskLists = payload ? payload.map( (taskList) => {
-              taskList.updated = Date.parse(taskList.updated);
-              return taskList;
-            }) : [];
-            break;
-          case 'authClick':
-            gapi.auth.authorize(
-              {client_id: CLIENT_ID, scope: SCOPES, immediate: false},
-              handleAuthResult);
-            break;
-          default:
-            console.log(msgType, payload);
-            throw Error('Got unknown message: '+msgType+': '+payload);
-        }
-
-        ReactDOM.render(view(currentState), document.getElementById('example'));
-      }
-
-      var CLIENT_ID = '1027347322337-e8mhkk9lp6kl5ho8fpj30i1plc2ehcpk.apps.googleusercontent.com';
-      var SCOPES = ['https://www.googleapis.com/auth/tasks.readonly'];
-
-      const handleAuthResult = (result) => {
-        if (result && !result.error) {
-          update('authed')
-        } else {
-          update('notAuthed')
-        }
-      }
 
       function googleScriptLoaded(){ update('googleScriptLoaded') }
     </script>
+    <!-- this is the first event that kicks off the update "loop" (really chain of events) -->
     <script src="https://apis.google.com/js/client.js?onload=googleScriptLoaded"> </script>
   </head>
   <body>
