@@ -1,50 +1,46 @@
-var React = require('react');
 /* Views */
 
-const view = (state) => {
-  return React.createElement('div', {}, [
-    taskListsView({ taskLists: state.taskLists} ),
-    authorizeDivView( {isAuthed: state.authState} )
-  ]);
-};
+const view = (state) => (<div>
+    <TaskListsView taskLists={state.taskLists}></TaskListsView>
+    <AuthorizeDivView isAuthed={state.authState}></AuthorizeDivView>
+  </div>)
 
-const taskListsView = props => {
-  if (props.taskLists){
-    const titleAgoObjs = props.taskLists.map( l => { return {'title': l.title, 'ago': Math.round((new Date() - l.updated) / 1000) + ' seconds ago'}; } );
-    return React.createElement('div', {}, [
-      React.createElement('h1', {key:'header'}, "Task Lists:"),
-      list( {data: props.taskLists.map( l => l.title + ' updated ' + Math.round((new Date() - l.updated) / 1000) + ' seconds ago')} ),
-      table({headers: ['title', 'ago'], data: titleAgoObjs})
-    ]);
-  } else {
-    return (
-      <h1 key="header"> "No task lists or still loading" </h1>
-    );
-  }
-};
+const TaskListsView = props => (
+  props.taskLists ?
+    (<div>
+      <h1> Task Lists: </h1>
+      <List data={props.taskLists.map( l => l.title + ' updated ' + Math.round((new Date() - l.updated) / 1000) + ' seconds ago')}></List>
+      <Table headers={['title', 'ago']} data={props.taskLists.map( l => { return {'title': l.title, 'ago': Math.round((new Date() - l.updated) / 1000) + ' seconds ago'}; } )}> </Table>
+      </div>)
+    :
+      <h1 key="header"> "No task lists or still loading" </h1>)
 
-const listItem = props => <li> { props.data.toString() } </li>;
-const list = props => <ul className="hello"> { props.data.map( d => listItem({data: d}) ) } </ul>
-const table = props => {
+const ListItem = props => <li> { props.data.toString() } </li>;
+const List = props => <ul className="hello"> { props.data.map( d => <ListItem data={d}></ListItem> ) } </ul>
+const Table = props => {
   const dataRows = props.data.map( d => props.headers.map( h => d[h] ) );
   return (<table>
-    {[].concat([tableHeaders( {headers: props.headers} )], dataRows.map( (dataRow) => tableRow({fields: dataRow}) ))}
+    {[].concat([ <TableHeaders headers={props.headers}></TableHeaders> ], dataRows.map( (dataRow) => TableRow({fields: dataRow}) ))}
   </table>);
 };
-const tableHeaders = props => React.createElement('tr', {}, props.headers.map( h => React.createElement('th', {}, h) ));
-const tableRow = props => React.createElement('tr', {}, props.fields.map( f => React.createElement('td', {}, f) ));
+const TableHeaders = props => (<tr>
+   { props.headers.map( h => <th>{h}</th> ) }
+  </tr>);
+const TableRow = props => (<tr>
+   { props.fields.map( f => <td> {f} </td> ) }
+  </tr>);
 
-const authorizeDivView = props => {
-  if (props.isAuthed !== 'notAuthed'){
-    return React.createElement('span', {}, "You're authorized");
-  }
-  return React.createElement('div', {id: 'authorize-div'}, [
-      React.createElement('span', {}, 'Authorize access to Google Tasks API'),
-      React.createElement('button', {
-        id: 'authorize-button',
-        onClick: () => [update('authClick'), false][1]
-      }, 'Authorize')
-    ]);
-};
+const AuthorizeDivView = props => (
+  props.isAuthed === 'notAuthed' ?
+    <div id="authorize-div">
+      <span>Authorize access to Google Tasks API</span>
+      <button
+        id='authorize-button'
+        onClick={() => [update('authClick'), false][1]}
+      > Authorize </button>
+    </div>
+  :
+    <span> You are Authorized </span>
+)
 
 module.exports.view = view;
