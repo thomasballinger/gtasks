@@ -3,18 +3,36 @@
     <script src="https://unpkg.com/react@15.3.2/dist/react.js"></script>
     <script src="https://unpkg.com/react-dom@15.3.2/dist/react-dom.js"></script>
     <script>
-      /** View */
+      /* Views */
 
       const view = (state) => {
         return React.createElement('div', {}, [
-          React.createElement('h1', {key:'header'}, "stuff:"),
-          list(state.taskLists.map( l => l.title )),
+          taskListsView(state.taskLists),
           authorizeDivView(state.authState)
         ]);
       }
 
+      const taskListsView = (taskLists) => {
+        if (taskLists){
+          titleAgoObjs = taskLists.map( l => { return {'title': l.title, 'ago': Math.round((new Date() - l.updated) / 1000) + ' seconds ago'}} );
+          return React.createElement('div', {}, [
+            React.createElement('h1', {key:'header'}, "Task Lists:"),
+            //list(taskLists.map( l => l.title + ' updated ' + Math.round((new Date() - l.updated) / 1000) + ' seconds ago')),
+            table(['title', 'ago'], titleAgoObjs)
+          ]);
+        } else {
+          return React.createElement('h1', {key:'header'}, "No task lists or still loading");
+        }
+      }
+
       const listItem = (s, i) => React.createElement("li", {key: i}, s.toString());
       const list = data => React.createElement("ul", { className: "hello", key:'imalist' }, data.map(listItem));
+      const table = (headers, data) => {
+        const dataRows = data.map( d => headers.map( h => d[h] ) );
+        return React.createElement('table', {}, [].concat([tableHeaders(headers)], dataRows.map(tableRow)));
+      }
+      const tableHeaders = headers => React.createElement('tr', {}, headers.map( h => React.createElement('th', {}, h) ));
+      const tableRow = fields => React.createElement('tr', {}, fields.map( f => React.createElement('td', {}, f) ));
 
       const authorizeDivView = (isAuthed) => {
         if (isAuthed !== 'notAuthed'){
@@ -30,11 +48,16 @@
     </script>
     <script type="text/javascript">
 
+      /* Model */
       var currentState = {
-        taskLists : [{title: 'a'}, {title: 'b'}, {title: 'c'}],
-        authState : 'dunnoYet'   // what this can be
+        taskLists : [{title: 'a', updated: 'never'}, {title: 'b', updated: 'recently'}],
+                    // Each task list has a title, an id, and an updated field: RFC 3339 timestamp
+                    // https://developers.google.com/google-apps/tasks/v1/reference/tasklists#resource
+        authState : 'dunnoYet'   // 'dunnoYet', 'authed', 'notAuthed'
       }
 
+      /* Update */
+      // Within this function the global variable currentState is mutated
       const update = (msgType, payload) => {
         console.log('got messageType:', msgType)
         switch (msgType){
@@ -51,11 +74,14 @@
             //todo: update model here
             break;
           case 'tasksAPILoaded':
-            setTimeout(listTaskLists, 0);
+            setTimeout( () => listTaskLists( (resp) => update('taskLists', resp.items) ), 0);
             break;
           case 'taskLists':
             console.log('got task lists!');
-            currentState.taskLists = payload ? payload : [];
+            currentState.taskLists = payload ? payload.map( (taskList) => {
+              taskList.updated = Date.parse(taskList.updated);
+              return taskList;
+            }) : [];
             break;
           default:
             console.log(msgType, payload);
@@ -68,9 +94,6 @@
       var CLIENT_ID = '1027347322337-e8mhkk9lp6kl5ho8fpj30i1plc2ehcpk.apps.googleusercontent.com';
       var SCOPES = ['https://www.googleapis.com/auth/tasks.readonly'];
 
-      /**
-       * Check if current user has authorized this application.
-       */
       function checkAuth() {
         gapi.auth.authorize(
           {
@@ -80,27 +103,14 @@
           }, handleAuthResult);
       }
 
-      /**
-       * Handle response from authorization server.
-       *
-       * @param {Object} authResult Authorization result.
-       */
       function handleAuthResult(authResult) {
         if (authResult && !authResult.error) {
-          // Hide auth UI, then load client library.
           update('authed')
         } else {
-          // Show auth UI, allowing the user to initiate authorization by
-          // clicking authorize button.
           update('notAuthed')
         }
       }
 
-      /**
-       * Initiate auth flow in response to user clicking authorize button.
-       *
-       * @param {Event} event Button click event.
-       */
       function handleAuthClick(event) {
         gapi.auth.authorize(
           {client_id: CLIENT_ID, scope: SCOPES, immediate: false},
@@ -108,24 +118,15 @@
         return false;
       }
 
-      /**
-       * Load Google Tasks API client library.
-       */
       function loadTasksApi() {
         gapi.client.load('tasks', 'v1', ()=>update('tasksAPILoaded'));
       }
-
-      /**
-       * Print task lists.
-       */
-      function listTaskLists() {
+      function listTaskLists(cb) {
         var request = gapi.client.tasks.tasklists.list({
             'maxResults': 10
           });
 
-          request.execute(function(resp) {
-            update('taskLists', resp.items)
-          });
+          request.execute(cb);
       }
 
       /**
