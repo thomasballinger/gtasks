@@ -1,3 +1,4 @@
+var React = require('react');
 /* Views */
 
 const view = (state) => (<div>
