@@ -1,10 +1,68 @@
-var React = require('react');
-/* Views */
+const React = require('react');
+const auth = require('./auth');
 
-const view = (state) => (<div>
-    <TaskListsView taskLists={state.taskLists}></TaskListsView>
-    <AuthorizeDivView isAuthed={state.authState}></AuthorizeDivView>
-  </div>)
+class TasksApp extends React.Component {
+  constructor(props){
+    super(props);
+    this.state = {
+      taskLists: [{title: 'abc', updated: 'never'}],
+      authState: 'dunnoYet'
+    };
+    console.log('constructor running, new state');
+  }
+  render() {
+    return (<div>
+      <TaskListsView taskLists={this.state.taskLists}></TaskListsView>
+      <AuthorizeDivView
+        isAuthed={this.state.authState}
+        onClick={this.onAuthClick.bind(this)}
+      />
+    </div>);
+  }
+
+  componentWillReceiveProps(nextProps){
+    console.log('new props!', this.props.gapiLoaded, nextProps.gapiLoaded);
+    if (!this.props.gapiLoaded && nextProps.gapiLoaded){
+      this.onGoogleScriptLoaded();
+    }
+  }
+
+  onGoogleScriptLoaded() {
+    gapi.auth.authorize(
+      {
+        'client_id': auth.CLIENT_ID,
+        'scope': auth.SCOPES.join(' '),
+        'immediate': true
+      }, this.handleAuthResult.bind(this));
+  }
+  onTaskAPILoaded(){
+    gapi.client.tasks.tasklists.list({ 'maxResults': 10 })
+      .execute( (resp) => this.taskListsLoaded(resp.items) );
+  }
+  taskListsLoaded(taskLists){
+    this.setState({taskLists: taskLists ? taskLists.map( (taskList) => {
+      taskList.updated = Date.parse(taskList.updated);
+      return taskList;
+    }) : []});
+  }
+  onAuthClick(){
+    console.log('trying to auth...', auth.CLIENT_ID, auth.SCOPES);
+    gapi.auth.authorize(
+      {client_id: auth.CLIENT_ID,
+       scope: auth.SCOPES,
+       immediate: false
+      }, ()=>this.handleAuthResult());
+  }
+  handleAuthResult(result) {
+    if (result && !result.error) {
+      this.setState({authState: 'authed'})
+      gapi.client.load('tasks', 'v1', ()=>this.onTaskAPILoaded());
+    } else {
+      this.setState({authState: 'notAuthed'})
+    }
+  };
+}
+
 
 const TaskListsView = props => (
   props.taskLists ?
@@ -37,11 +95,15 @@ const AuthorizeDivView = props => (
       <span>Authorize access to Google Tasks API</span>
       <button
         id='authorize-button'
-        onClick={() => [update('authClick'), false][1]}
+        onClick={props.onClick}
       > Authorize </button>
     </div>
   :
-    <span> You are Authorized </span>
+    (props.isAuthed === 'authed' ?
+      <span> You are Authorized </span>
+    :
+      <span> Waiting for auth to happen </span>
+    )
 )
 
-module.exports.view = view;
+module.exports.TasksApp = TasksApp;
