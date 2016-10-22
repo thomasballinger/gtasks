@@ -1,6 +1,88 @@
 const React = require('react');
 const auth = require('./auth');
 
+/** sets up gtasks api */
+class TasksAppAuthenticator extends React.Component {
+  constructor(props){
+    super(props);
+    var gapi;
+    var authState = 'dunnoYet';
+    if (typeof window['gapi'] !== 'undefined'){
+      console.log('gapi already loaded!', gapi);
+      this.onGoogleScriptLoaded();
+    } else if (typeof window['gapiRequested'] !== 'undefined'){
+      console.log('gapi alread scheduled to be loaded:', gapiRequested);
+      window.gapiRequested.push(this.onGoogleScriptLoaded.bind(this));
+    } else {
+      window.gapiRequested = [this.onGoogleScriptLoaded.bind(this)];
+      console.log("gapi not loaded or scheduled, let's schedule it:", gapiRequested);
+      var s = document.createElement( 'script' );
+      s.setAttribute('src', "https://apis.google.com/js/client.js?onload=onGapiLoad");
+      window.onGapiLoad = () => {
+        console.log('calling callbacks:', window.gapiRequested);
+        window.gapiRequested.forEach(cb => cb());
+      };
+      document.body.appendChild(s);
+    }
+
+    this.state = {
+      authState: 'dunnoYet'
+    }
+  }
+  render() {
+    return (<AuthorizeDivView
+      isAuthed={this.state.authState}
+      onClick={this.onAuthClick.bind(this)}
+    />)
+  }
+
+  // Initialization, loading Google Tasks api
+  onGoogleScriptLoaded() {
+    console.log("value of this:", this);
+    console.log("we think it was loaded...", window.gapi.auth, window.gapi);
+    gapi.auth.authorize(
+      {
+        'client_id': auth.CLIENT_ID,
+        'scope': auth.SCOPES.join(' '),
+        'immediate': true
+      }, this.handleAuthResult.bind(this));
+  }
+  onAuthClick(){
+    console.log('trying to auth...', auth.CLIENT_ID, auth.SCOPES);
+    gapi.auth.authorize(
+      {client_id: auth.CLIENT_ID,
+       scope: auth.SCOPES,
+       immediate: false
+      }, ()=>this.handleAuthResult());
+  }
+  handleAuthResult(result) {
+    if (result && !result.error) {
+      this.setState({authState: 'authed'})
+      gapi.client.load('tasks', 'v1', ()=>this.props.onTasksApiLoaded(gapi.client.tasks));
+    } else {
+      this.setState({authState: 'notAuthed'})
+    }
+  };
+}
+
+class TaskListApp extends React.Component {
+  constructor(props){
+    super(props);
+    this.state = {
+      tasksApi: undefined
+    }
+  }
+  render() {
+    return (<div>
+      <TasksAppAuthenticator onTasksApiLoaded={this.onTasksApiLoaded.bind(this)}/>
+      {this.state.tasksApi ? 'yay' : 'waiting...'}
+    </div>)
+  }
+  onTasksApiLoaded(api){
+    this.setState({tasksApi: api})
+  }
+}
+
 class TasksApp extends React.Component {
   constructor(props){
     super(props);
@@ -26,7 +108,7 @@ class TasksApp extends React.Component {
     }
   }
 
-  onTaskAPILoaded(){
+  onTaskApiLoaded(){
     this.getTaskLists();
   }
   getTaskLists(){
@@ -67,12 +149,12 @@ class TasksApp extends React.Component {
       {client_id: auth.CLIENT_ID,
        scope: auth.SCOPES,
        immediate: false
-      }, ()=>this.handleAuthResult());
+      }, this.handleAuthResult.bind(this));
   }
   handleAuthResult(result) {
     if (result && !result.error) {
       this.setState({authState: 'authed'})
-      gapi.client.load('tasks', 'v1', ()=>this.onTaskAPILoaded());
+      gapi.client.load('tasks', 'v1', ()=>this.onTaskApiLoaded());
     } else {
       this.setState({authState: 'notAuthed'})
     }
@@ -159,6 +241,8 @@ const AuthorizeDivView = props => (
 )
 
 module.exports.TasksApp = TasksApp;
+module.exports.TaskListApp = TaskListApp;
+module.exports.TasksAppAuthenticator = TasksAppAuthenticator;
 
 
 (function testSorted(){
