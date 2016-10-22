@@ -80,6 +80,17 @@ class TasksApp extends React.Component {
 }
 
 
+const sorted = (arr, key, reverse) => {
+  if (reverse === undefined){ reverse = false; }
+  const withIndices = arr.map(v => [key(v), v]);
+  if (reverse){
+    withIndices.sort( (a, b) => b[0] - a[0])
+  } else {
+    withIndices.sort( (a, b) => a[0] - b[0])
+  }
+  return withIndices.map(pair => pair[1]);
+}
+
 const TaskListsView = props => (
   props.taskLists ?
     (<div>
@@ -88,9 +99,11 @@ const TaskListsView = props => (
         data: l.title + ' updated ' + Math.round((new Date() - l.updated) / 1000) + ' seconds ago',
         key: l.id
       }))}/>
-      { props.taskLists.map( taskList => (
-          <h2 key={taskList.id+'-header'}> {taskList.title} </h2>,
-          <TaskTable tasks={props.tasks[taskList.id] || []} key={taskList.id+'-list'}/>
+      { sorted(props.taskLists, t=>Date.parse(t.updated), true).map( taskList => (
+         <div key={taskList.id}>
+          <TaskTable tasks={props.tasks[taskList.id] || []}/>
+          <h2> {taskList.title} </h2>
+        </div>
         ))
       }
       </div>)
@@ -146,3 +159,48 @@ const AuthorizeDivView = props => (
 )
 
 module.exports.TasksApp = TasksApp;
+
+
+(function testSorted(){
+  const arrayEquals = (a, b) => {
+    if (a.length !== b.length){ return false; }
+    for (var i = 0; i < a.length; i++){
+      if (a[i] !== b[i]){ return false; }
+    }
+    return true;
+  }
+  const assertEqual = (a, b, msg) => {
+    if (msg === undefined){
+      msg = 'not equal';
+    }
+    if (Array.isArray(a) && Array.isArray(b)){
+      if (arrayEquals(a, b)){
+        return true;
+      }
+    } else {
+      if (a === b){
+        return true;
+      }
+    }
+    console.log(msg, a, b);
+    throw Error(msg+': '+a+b);
+  }
+  assertEqual(1, 1);
+  var working = false;
+  try {
+    assertEqual(['a', 'b'], ['a', 'c']);
+  } catch (e){
+    working = true;
+  }
+  if (!working){
+    throw "assertEquals doens't work";
+  }
+
+  const orig = ['asdf', 'z', 'qwqwe', 'cv', 'wer'];
+  const copy = orig.slice();
+  const after = sorted(orig, (x)=>x.length);
+
+  assertEqual(after, ['z', 'cv', 'wer', 'asdf', 'qwqwe']);
+  assertEqual(after, ['z', 'cv', 'wer', 'asdf', 'qwqwe']);
+
+})();
