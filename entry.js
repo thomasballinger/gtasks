@@ -4,7 +4,6 @@ const React = require('react');
 const TasksApp = require('./views').TasksApp;
 
 window.googleScriptLoaded = () => {
-  console.log("google script loaded!");
   ReactDOM.render(React.createElement(TasksApp, {gapiLoaded: true}), document.getElementById('example'));
 }
 

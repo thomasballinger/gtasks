@@ -6,12 +6,13 @@ class TasksApp extends React.Component {
     super(props);
     this.state = {
       taskLists: [{title: 'abc', updated: 'never', id: '123123'}],
+      tasks: {}, // This'll be a mapping of tasklist id to tasks objects
       authState: 'dunnoYet'
     };
   }
   render() {
     return (<div>
-      <TaskListsView taskLists={this.state.taskLists}/>
+      <TaskListsView taskLists={this.state.taskLists} tasks={this.state.tasks}/>
       <AuthorizeDivView
         isAuthed={this.state.authState}
         onClick={this.onAuthClick.bind(this)}
@@ -25,15 +26,10 @@ class TasksApp extends React.Component {
     }
   }
 
-  onGoogleScriptLoaded() {
-    gapi.auth.authorize(
-      {
-        'client_id': auth.CLIENT_ID,
-        'scope': auth.SCOPES.join(' '),
-        'immediate': true
-      }, this.handleAuthResult.bind(this));
-  }
   onTaskAPILoaded(){
+    this.getTaskLists();
+  }
+  getTaskLists(){
     gapi.client.tasks.tasklists.list({ 'maxResults': 10 })
       .execute( (resp) => this.taskListsLoaded(resp.items) );
   }
@@ -42,6 +38,28 @@ class TasksApp extends React.Component {
       taskList.updated = Date.parse(taskList.updated);
       return taskList;
     }) : []});
+    taskLists.forEach( taskList => this.getTasks(taskList) )
+  }
+
+  getTasks(taskList){
+    gapi.client.tasks.tasks.list({ 'tasklist': taskList.id })
+      .execute( resp => this.tasksLoaded(resp.items, taskList));
+  }
+  tasksLoaded(items, taskList){
+    this.setState((prevState, props)=>{
+      prevState.tasks[taskList.id] = items; // ugh mutation
+      return {tasks: prevState.tasks};
+    });
+  }
+
+  // Initialization, loading Google Tasks api
+  onGoogleScriptLoaded() {
+    gapi.auth.authorize(
+      {
+        'client_id': auth.CLIENT_ID,
+        'scope': auth.SCOPES.join(' '),
+        'immediate': true
+      }, this.handleAuthResult.bind(this));
   }
   onAuthClick(){
     console.log('trying to auth...', auth.CLIENT_ID, auth.SCOPES);
@@ -70,13 +88,22 @@ const TaskListsView = props => (
         data: l.title + ' updated ' + Math.round((new Date() - l.updated) / 1000) + ' seconds ago',
         key: l.id
       }))}/>
-      <Table headers={['title', 'ago']} dataKeyObjs={props.taskLists.map( l => ({
-          data: {'title': l.title, 'ago': Math.round((new Date() - l.updated) / 1000) + ' seconds ago'},
-          key: l.id,
-      }))}/>
+      { props.taskLists.map( taskList => (
+          <h2 key={taskList.id+'-header'}> {taskList.title} </h2>,
+          <TaskTable tasks={props.tasks[taskList.id] || []} key={taskList.id+'-list'}/>
+        ))
+      }
       </div>)
     :
       <h1 key="header"> "No task lists or still loading" </h1>)
+
+const TaskTable = props => (
+  <table>
+    <tbody>
+      <TableHeaders headers={['title', 'status']}/>
+      {props.tasks.map( t => <TableRow fields={[t.title, t.status]} key={t.id}/> )}
+    </tbody>
+  </table>);
 
 const ListItem = props => <li> { props.data.toString() } </li>;
 const List = props => (
