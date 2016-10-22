@@ -5,14 +5,13 @@ class TasksApp extends React.Component {
   constructor(props){
     super(props);
     this.state = {
-      taskLists: [{title: 'abc', updated: 'never'}],
+      taskLists: [{title: 'abc', updated: 'never', id: '123123'}],
       authState: 'dunnoYet'
     };
-    console.log('constructor running, new state');
   }
   render() {
     return (<div>
-      <TaskListsView taskLists={this.state.taskLists}></TaskListsView>
+      <TaskListsView taskLists={this.state.taskLists}/>
       <AuthorizeDivView
         isAuthed={this.state.authState}
         onClick={this.onAuthClick.bind(this)}
@@ -21,7 +20,6 @@ class TasksApp extends React.Component {
   }
 
   componentWillReceiveProps(nextProps){
-    console.log('new props!', this.props.gapiLoaded, nextProps.gapiLoaded);
     if (!this.props.gapiLoaded && nextProps.gapiLoaded){
       this.onGoogleScriptLoaded();
     }
@@ -68,25 +66,39 @@ const TaskListsView = props => (
   props.taskLists ?
     (<div>
       <h1> Task Lists: </h1>
-      <List data={props.taskLists.map( l => l.title + ' updated ' + Math.round((new Date() - l.updated) / 1000) + ' seconds ago')}></List>
-      <Table headers={['title', 'ago']} data={props.taskLists.map( l => { return {'title': l.title, 'ago': Math.round((new Date() - l.updated) / 1000) + ' seconds ago'}; } )}> </Table>
+      <List data={ props.taskLists.map( l => ({
+        data: l.title + ' updated ' + Math.round((new Date() - l.updated) / 1000) + ' seconds ago',
+        key: l.id
+      }))}/>
+      <Table headers={['title', 'ago']} dataKeyObjs={props.taskLists.map( l => ({
+          data: {'title': l.title, 'ago': Math.round((new Date() - l.updated) / 1000) + ' seconds ago'},
+          key: l.id,
+      }))}/>
       </div>)
     :
       <h1 key="header"> "No task lists or still loading" </h1>)
 
 const ListItem = props => <li> { props.data.toString() } </li>;
-const List = props => <ul className="hello"> { props.data.map( d => <ListItem data={d}></ListItem> ) } </ul>
+const List = props => (
+  <ul className="hello">
+    { props.data.map( d => <ListItem data={d.data} key={d.key}/> ) }
+  </ul>)
 const Table = props => {
-  const dataRows = props.data.map( d => props.headers.map( h => d[h] ) );
+  const keyDataObjs = props.dataKeyObjs.map( d => ({
+    key: d.key,
+    data: props.headers.map( h => d.data[h])
+  }));
   return (<table>
-    {[].concat([ <TableHeaders headers={props.headers}></TableHeaders> ], dataRows.map( (dataRow) => TableRow({fields: dataRow}) ))}
+    <tbody>
+    {[].concat([ <TableHeaders headers={props.headers} key='the header'></TableHeaders> ], keyDataObjs.map( (dataRow) => <TableRow fields={dataRow.data} key={dataRow.key}/> ))}
+      </tbody>
   </table>);
 };
 const TableHeaders = props => (<tr>
-   { props.headers.map( h => <th>{h}</th> ) }
+   { props.headers.map( h => <th key={h}>{h}</th> ) }
   </tr>);
 const TableRow = props => (<tr>
-   { props.fields.map( f => <td> {f} </td> ) }
+   { props.fields.map( (f, i) => <td key={i}> {f} </td> ) }
   </tr>);
 
 const AuthorizeDivView = props => (
