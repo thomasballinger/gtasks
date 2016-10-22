@@ -12,4 +12,4 @@ window.googleScriptLoaded = () => {
 
 //ReactDOM.render(React.createElement(TasksApp, {gapiLoaded: false}), document.getElementById('example'));
 ReactDOM.render(React.createElement(TaskListApp), document.getElementById('example1'));
-ReactDOM.render(React.createElement(TaskListApp), document.getElementById('example2'));
+ReactDOM.render(React.createElement(TasksApp), document.getElementById('example2'));
