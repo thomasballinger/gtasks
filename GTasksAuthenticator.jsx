@@ -67,11 +67,11 @@ const AuthorizeDivView = props => (
       > Authorize </button>
     </div>
   :
-    (props.isAuthed === 'authed' ?
+    (!!props.showStatus && (props.isAuthed === 'authed' ?
       <span> You are Authorized </span>
     :
       <span> Waiting for auth to happen </span>
-    )
+    ))
 )
 
 

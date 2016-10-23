@@ -7,7 +7,8 @@ class TaskListApp extends React.Component {
   constructor(props){
     super(props);
     this.state = {
-      tasksApi: undefined
+      tasks: [],
+      api: undefined
     }
   }
   render() {
@@ -17,13 +18,52 @@ class TaskListApp extends React.Component {
         client_id={auth.CLIENT_ID}
         scopes={auth.SCOPES}
         />
-      {this.state.tasksApi ? 'yay' : 'waiting...'}
+      <TaskTable tasks={this.state.tasks} />
     </div>)
   }
   onTasksApiLoaded(api){
-    this.setState({tasksApi: api})
+    this.setState({api: api})
+    api.tasks.list({
+      'tasklist': this.props.tasklistId,
+      'maxResults': this.props.maxResults
+    }).execute( resp => this.setState({tasks: resp.items}));
+    //https://developers.google.com/google-apps/tasks/v1/reference/tasks/list
   }
 }
+TaskListApp.defaultProps = {
+  maxResults: 20
+}
+
+
+class SingleTaskDisplay extends React.Component {
+  constructor(props){
+    super(props);
+    this.state = {
+      tasks: [],
+      api: undefined
+    }
+  }
+  render() {
+    return (<span>
+      <TasksAppAuthenticator
+        onTasksApiLoaded={this.onTasksApiLoaded.bind(this)}
+        client_id={auth.CLIENT_ID}
+        scopes={auth.SCOPES}
+        />
+      {this.state.tasks.length ? this.state.tasks[0].title : (this.props.defaultContent || '?')}
+    </span>)
+  }
+  onTasksApiLoaded(api){
+    this.setState({api: api})
+    api.tasks.list({
+      'tasklist': this.props.tasklistId,
+      'maxResults': 1
+    }).execute( resp => this.setState({tasks: resp.items}));
+    //https://developers.google.com/google-apps/tasks/v1/reference/tasks/list
+  }
+
+}
+
 
 class TasksApp extends React.Component {
   constructor(props){
@@ -59,6 +99,7 @@ class TasksApp extends React.Component {
       .execute( (resp) => this.taskListsLoaded(resp.items) );
   }
   taskListsLoaded(taskLists){
+    console.log(taskLists);
     this.setState({taskLists: taskLists ? taskLists.map( (taskList) => {
       taskList.updated = Date.parse(taskList.updated);
       return taskList;
@@ -98,13 +139,15 @@ const TaskListsView = props => (
     :
       <h1 key="header"> "No task lists or still loading" </h1>)
 
-const TaskTable = props => (
-  <table>
+const sigil = (s) => s === 'needsAction' ? '☐' : '☑';
+
+const TaskTable = props => {
+  return (<table>
     <tbody>
-      <TableHeaders headers={['title', 'status']}/>
-      {props.tasks.map( t => <TableRow fields={[t.title, t.status]} key={t.id}/> )}
+      {props.tasks.map( t => <TableRow fields={[sigil(t.status), t.title]} key={t.id}/> )}
     </tbody>
   </table>);
+}
 
 const ListItem = props => <li> { props.data.toString() } </li>;
 const List = props => (
@@ -131,4 +174,5 @@ const TableRow = props => (<tr>
 
 module.exports.TasksApp = TasksApp;
 module.exports.TaskListApp = TaskListApp;
+module.exports.SingleTaskDisplay = SingleTaskDisplay;
 module.exports.TasksAppAuthenticator = TasksAppAuthenticator;
