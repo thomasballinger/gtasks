@@ -18,7 +18,6 @@ window.gtasksTopItem = (element, taskListId)=>{
 }
 window.habiticaDailiesWidget = (element, authTaskListId) => {
   ReactDOM.render(React.createElement(HabiticaDailiesList, {
-    authTaskListId: authTaskListId,
-    defaultContent: element.textContent
+    tasklistId: authTaskListId
   }), element);
 }
