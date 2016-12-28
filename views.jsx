@@ -2,6 +2,7 @@ const React = require('react');
 const auth = require('./auth');
 const TasksAppAuthenticator = require('./GTasksAuthenticator').TasksAppAuthenticator;
 const sorted = require('./util').sorted;
+const parseAuthKV = require('./util').parseAuthKV;
 
 class TaskListApp extends React.Component {
   constructor(props){
@@ -61,7 +62,70 @@ class SingleTaskDisplay extends React.Component {
     }).execute( resp => this.setState({tasks: resp.items}));
     //https://developers.google.com/google-apps/tasks/v1/reference/tasks/list
   }
+}
 
+
+class HabiticaDailiesList extends React.Component {
+  constructor(props){
+    super(props);
+    this.state = {
+      user_id: undefined,
+      token: undefined,
+      dailies: []
+    }
+  }
+  render() {
+    return (<div>
+      <TasksAppAuthenticator
+        onTasksApiLoaded={this.onTasksApiLoaded.bind(this)}
+        client_id={auth.CLIENT_ID}
+        scopes={auth.SCOPES}
+        />
+      <TaskTable tasks={this.state.dailies} />
+    </div>)
+  }
+  onTasksApiLoaded(api){
+    api.tasks.list({
+      'tasklist': this.props.tasklistId,
+      'maxResults': this.props.maxResults
+    }).execute( resp => {
+      var user_id, token;
+      resp.items.forEach(item => {
+        const data = parseAuthKV(item.title);
+        if (data.key === 'HABITICA_ID'){
+          user_id = data.value;
+        }
+        if (data.key === 'HABITICA_TOKEN'){
+          token = data.value;
+        }
+      });
+      fetch('https://habitica.com/api/v3/tasks/user', {
+         method: 'get',
+         headers: {
+           'x-api-user': user_id,
+           'x-api-key': token
+         },
+       })
+        .then(resp => resp.json())
+        .then(data => {
+          console.log(data);
+          this.setState({
+            user_id: user_id,
+            token: token,
+            dailies: data.data
+              .filter( x => x.type == 'daily' )
+              .map(x => ({
+                title: x.text,
+                status: x.completed ? 'done' : 'needsAction',
+                id: x.id
+              }))
+          });
+        });
+    });
+  }
+}
+TaskListApp.defaultProps = {
+  maxResults: 20
 }
 
 
@@ -99,7 +163,6 @@ class TasksApp extends React.Component {
       .execute( (resp) => this.taskListsLoaded(resp.items) );
   }
   taskListsLoaded(taskLists){
-    console.log(taskLists);
     this.setState({taskLists: taskLists ? taskLists.map( (taskList) => {
       taskList.updated = Date.parse(taskList.updated);
       return taskList;
@@ -176,3 +239,4 @@ module.exports.TasksApp = TasksApp;
 module.exports.TaskListApp = TaskListApp;
 module.exports.SingleTaskDisplay = SingleTaskDisplay;
 module.exports.TasksAppAuthenticator = TasksAppAuthenticator;
+module.exports.HabiticaDailiesList = HabiticaDailiesList;
